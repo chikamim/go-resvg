@@ -47,12 +47,8 @@ func (o *Options) ResvgOption() *C.struct_resvg_options {
 }
 
 func (o *Options) ResvgBackgroundColor() C.struct_resvg_color {
-	color := C.struct_resvg_color{}
 	r, g, b, _ := hexColorToRGB(o.BackgroundColor)
-	color.r = C.uchar(r)
-	color.g = C.uchar(g)
-	color.b = C.uchar(b)
-	return color
+	return C.struct_resvg_color{C.uchar(r), C.uchar(g), C.uchar(b)}
 }
 
 func hexColorToRGB(hex string) (r, g, b uint8, err error) {
@@ -62,7 +58,7 @@ func hexColorToRGB(hex string) (r, g, b uint8, err error) {
 		return
 	}
 	if n != 3 {
-		err = errors.New("Invalid Hex Color")
+		err = errors.New("invalid hex color")
 		return
 	}
 
