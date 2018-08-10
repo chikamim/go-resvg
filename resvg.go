@@ -69,7 +69,7 @@ func hexColorToRGB(hex string) (r, g, b uint8, err error) {
 	return r, g, b, nil
 }
 
-func RenderFromFile(svgpath, pngpath string, option *Options) error {
+func RenderPNGFromFile(svgpath, pngpath string, option *Options) error {
 	svgpathC := C.CString(svgpath)
 	defer C.free(unsafe.Pointer(svgpathC))
 	pngpathC := C.CString(pngpath)
@@ -79,6 +79,7 @@ func RenderFromFile(svgpath, pngpath string, option *Options) error {
 	opt := option.ResvgOption()
 
 	res := C.resvg_parse_tree_from_file(svgpathC, opt, &tree)
+	defer C.resvg_tree_destroy(tree)
 	if res != 0 {
 		return resvgError(res)
 	}
@@ -86,11 +87,10 @@ func RenderFromFile(svgpath, pngpath string, option *Options) error {
 	if res != 0 {
 		return resvgError(res)
 	}
-	C.resvg_tree_destroy(tree)
 	return nil
 }
 
-func RenderFromString(svg, pngpath string, option *Options) error {
+func RenderPNGFromString(svg, pngpath string, option *Options) error {
 	svgC := C.CString(svg)
 	defer C.free(unsafe.Pointer(svgC))
 	pngpathC := C.CString(pngpath)
@@ -100,6 +100,7 @@ func RenderFromString(svg, pngpath string, option *Options) error {
 	opt := option.ResvgOption()
 
 	res := C.resvg_parse_tree_from_data(svgC, C.ulong(len(svg)), opt, &tree)
+	defer C.resvg_tree_destroy(tree)
 	if res != 0 {
 		return resvgError(res)
 	}
@@ -107,7 +108,6 @@ func RenderFromString(svg, pngpath string, option *Options) error {
 	if res != 0 {
 		return resvgError(res)
 	}
-	C.resvg_tree_destroy(tree)
 	return nil
 }
 
@@ -129,13 +129,13 @@ func RenderImageFromString(svg string, option *Options) (img image.Image, err er
 	opt := option.ResvgOption()
 
 	res := C.resvg_parse_tree_from_data(svgC, C.ulong(len(svg)), opt, &tree)
+	defer C.resvg_tree_destroy(tree)
 	if res != 0 {
 		return img, resvgError(res)
 	}
 	C.resvg_cairo_render_to_canvas(tree, opt, size, ctx)
-
 	s := cairo.NewSurfaceFromC((cairo.Cairo_surface)(unsafe.Pointer(surface)), (cairo.Cairo_context)(unsafe.Pointer(ctx)))
-	C.resvg_tree_destroy(tree)
+
 	return s.GetImage(), nil
 }
 
@@ -156,6 +156,6 @@ func resvgError(enum C.int) error {
 	case C.RESVG_ERROR_NO_CANVAS:
 		return errors.New("failed to allocate an image")
 	default:
-		return errors.New("unknown Error")
+		return errors.New("unknown error")
 	}
 }
