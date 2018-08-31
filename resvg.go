@@ -1,7 +1,7 @@
 package resvg
 
 /*
-#cgo LDFLAGS: -L./lib -lresvg
+#cgo LDFLAGS: -L/usr/local/lib -lresvg
 #cgo pkg-config: cairo
 #include <stdlib.h>
 #include <cairo.h>
