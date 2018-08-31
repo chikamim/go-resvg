@@ -1,7 +1,7 @@
 package resvg
 
 /*
-#cgo LDFLAGS: -L./lib -lresvg
+#cgo LDFLAGS: -L/usr/local/lib -lresvg
 #cgo pkg-config: cairo
 #include <stdlib.h>
 #include <cairo.h>
@@ -47,12 +47,8 @@ func (o *Options) ResvgOption() *C.struct_resvg_options {
 }
 
 func (o *Options) ResvgBackgroundColor() C.struct_resvg_color {
-	color := C.struct_resvg_color{}
 	r, g, b, _ := hexColorToRGB(o.BackgroundColor)
-	color.r = C.uchar(r)
-	color.g = C.uchar(g)
-	color.b = C.uchar(b)
-	return color
+	return C.struct_resvg_color{C.uchar(r), C.uchar(g), C.uchar(b)}
 }
 
 func hexColorToRGB(hex string) (r, g, b uint8, err error) {
@@ -62,7 +58,7 @@ func hexColorToRGB(hex string) (r, g, b uint8, err error) {
 		return
 	}
 	if n != 3 {
-		err = errors.New("Invalid Hex Color")
+		err = errors.New("invalid hex color")
 		return
 	}
 
@@ -88,6 +84,36 @@ func RenderPNGFromFile(svgpath, pngpath string, option *Options) error {
 		return resvgError(res)
 	}
 	return nil
+}
+
+func RenderImageWithIDFromFile(svg, id string, option *Options) (img image.Image, err error) {
+	svgC := C.CString(svg)
+	defer C.free(unsafe.Pointer(svgC))
+	idC := C.CString(id)
+	defer C.free(unsafe.Pointer(idC))
+
+	size := C.struct_resvg_size{}
+	size.width = C.uint(option.Width)
+	size.height = C.uint(option.Height)
+
+	surface := C.cairo_image_surface_create(C.CAIRO_FORMAT_ARGB32, C.int(option.Width), C.int(option.Height))
+	defer C.cairo_surface_destroy(surface)
+	ctx := C.cairo_create(surface)
+	defer C.cairo_destroy(ctx)
+
+	tree := &C.struct_resvg_render_tree{}
+
+	opt := option.ResvgOption()
+
+	res := C.resvg_parse_tree_from_data(svgC, C.ulong(len(svg)), opt, &tree)
+	defer C.resvg_tree_destroy(tree)
+	if res != 0 {
+		return img, resvgError(res)
+	}
+	C.resvg_cairo_render_to_canvas_by_id(tree, opt, size, idC, ctx)
+	s := cairo.NewSurfaceFromC((cairo.Cairo_surface)(unsafe.Pointer(surface)), (cairo.Cairo_context)(unsafe.Pointer(ctx)))
+
+	return s.GetImage(), nil
 }
 
 func RenderPNGFromString(svg, pngpath string, option *Options) error {
