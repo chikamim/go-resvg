@@ -86,6 +86,36 @@ func RenderPNGFromFile(svgpath, pngpath string, option *Options) error {
 	return nil
 }
 
+func RenderImageWithIDFromFile(svg, id string, option *Options) (img image.Image, err error) {
+	svgC := C.CString(svg)
+	defer C.free(unsafe.Pointer(svgC))
+	idC := C.CString(id)
+	defer C.free(unsafe.Pointer(idC))
+
+	size := C.struct_resvg_size{}
+	size.width = C.uint(option.Width)
+	size.height = C.uint(option.Height)
+
+	surface := C.cairo_image_surface_create(C.CAIRO_FORMAT_ARGB32, C.int(option.Width), C.int(option.Height))
+	defer C.cairo_surface_destroy(surface)
+	ctx := C.cairo_create(surface)
+	defer C.cairo_destroy(ctx)
+
+	tree := &C.struct_resvg_render_tree{}
+
+	opt := option.ResvgOption()
+
+	res := C.resvg_parse_tree_from_data(svgC, C.ulong(len(svg)), opt, &tree)
+	defer C.resvg_tree_destroy(tree)
+	if res != 0 {
+		return img, resvgError(res)
+	}
+	C.resvg_cairo_render_to_canvas_by_id(tree, opt, size, idC, ctx)
+	s := cairo.NewSurfaceFromC((cairo.Cairo_surface)(unsafe.Pointer(surface)), (cairo.Cairo_context)(unsafe.Pointer(ctx)))
+
+	return s.GetImage(), nil
+}
+
 func RenderPNGFromString(svg, pngpath string, option *Options) error {
 	svgC := C.CString(svg)
 	defer C.free(unsafe.Pointer(svgC))
